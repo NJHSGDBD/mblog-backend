@@ -17,6 +17,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 import st.coo.memo.common.SysConfigConstant;
 import st.coo.memo.dto.resource.UploadResourceResponse;
+import st.coo.memo.entity.TResource;
 import st.coo.memo.service.SysConfigService;
 
 import java.io.File;
@@ -72,5 +73,10 @@ public class AWSS3ResourceProvider implements ResourceProvider {
         uploadResourceResponse.setSuffix(suffix);
         uploadResourceResponse.setPublicId(publicId);
         return uploadResourceResponse;
+    }
+
+    @Override
+    public void del(TResource tResource){
+
     }
 }

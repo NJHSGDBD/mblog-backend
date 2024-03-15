@@ -67,11 +67,16 @@ public class ResourceService implements ApplicationContextAware {
         RESOURCE_PROVIDER_MAP.put(StorageType.AWSS3, AWSS3ResourceProvider.class);
     }
 
+    public ResourceProvider getProvider(StorageType storageType){
+        Class<? extends ResourceProvider> cls = RESOURCE_PROVIDER_MAP.get(storageType);
+        ResourceProvider provider = applicationContext.getBean(cls);
+        return provider;
+    }
+
     public List<UploadResourceResponse> upload(MultipartFile[] multipartFiles) {
         String value = sysConfigService.getString(SysConfigConstant.STORAGE_TYPE);
         StorageType storageType = StorageType.get(value);
-        Class<? extends ResourceProvider> cls = RESOURCE_PROVIDER_MAP.get(storageType);
-        ResourceProvider provider = applicationContext.getBean(cls);
+        ResourceProvider provider = getProvider(storageType);
         List<UploadResourceResponse> result = Lists.newArrayList();
         for (MultipartFile multipartFile : multipartFiles) {
             result.add(upload(multipartFile, storageType, provider));

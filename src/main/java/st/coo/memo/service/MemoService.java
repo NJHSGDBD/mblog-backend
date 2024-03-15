@@ -10,7 +10,6 @@ import com.google.gson.Gson;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.row.Db;
 import com.mybatisflex.core.row.Row;
-import com.qiniu.common.QiniuException;
 
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +32,8 @@ import st.coo.memo.dto.memo.*;
 import st.coo.memo.dto.resource.ResourceDto;
 import st.coo.memo.entity.*;
 import st.coo.memo.mapper.*;
-import st.coo.memo.service.resource.QiNiuResourceProvider;
+import st.coo.memo.service.resource.ResourceProvider;
+import st.coo.memo.service.resource.ResourceService;
 
 import java.io.File;
 import java.io.IOException;
@@ -68,6 +68,8 @@ public class MemoService {
 
     @Resource
     private SysConfigService sysConfigService;
+    @Resource
+    private ResourceService resourceService;
     @Resource
     private UserMemoRelationMapperExt userMemoRelationMapperExt;
 
@@ -110,14 +112,7 @@ public class MemoService {
         //删除文件
         List<TResource> resourcesList = resourceMapper.selectListByQuery(QueryWrapper.create().and(T_RESOURCE.MEMO_ID.eq(id)));
         for (TResource tResource : resourcesList) {
-            //删除本地文件
-            if (tResource.getStorageType().equals(StorageType.LOCAL.name())) {
-                this.deleteFile(tResource.getInternalPath());
-            }
-            //删除云存储文件
-            if (tResource.getStorageType().equals(StorageType.QINIU.name())) {
-                // (new QiNiuResourceProvider()).del(tResource);
-            }
+            deleteResource(tResource);
         }
         resourceMapper.deleteByQuery(QueryWrapper.create().and(T_RESOURCE.MEMO_ID.eq(id)));
         memoMapper.deleteById(id);
@@ -128,6 +123,14 @@ public class MemoService {
         threadPoolTaskExecutor.execute(() -> {
             pushOfficialSquare(tMemo,user,MemoType.REMOVE);
         });
+    }
+
+    public void deleteResource(TResource tResource){
+        //删除资源文件
+        String storeString = tResource.getStorageType();
+        StorageType storageType = StorageType.get(storeString);
+        ResourceProvider provider = resourceService.getProvider(storageType);
+        provider.del(tResource);
     }
 
     public void setMemoPriority(int id, boolean set) {
@@ -328,6 +331,9 @@ public class MemoService {
         if (existMemo == null) {
             throw new BizException(ResponseCode.fail, "memo不存在");
         }
+        List<TResource> existResources = resourceMapper.selectListByQuery(QueryWrapper.create().and(T_RESOURCE.MEMO_ID.eq(existMemo.getId())));
+        List<String> existPublicIds = existResources.stream().map(TResource::getPublicId).collect(Collectors.toList());
+
         String oldTags = existMemo.getTags();
         String content = updateMemoRequest.getContent();
         TMemo tMemo = new TMemo();
@@ -381,7 +387,18 @@ public class MemoService {
                             .and(T_RESOURCE.MEMO_ID.eq(0)).and(T_RESOURCE.PUBLIC_ID.eq(publicId))) == 1, "更新resource异常");
                 }
             }
-
+            List<TResource> resources = resourceMapper.selectListByQuery(QueryWrapper.create().and(T_RESOURCE.MEMO_ID.eq(existMemo.getId())));
+            List<String> publicIds = resources.stream().map(TResource::getPublicId).collect(Collectors.toList());
+            List<String> removedPublicIds = existPublicIds.stream()
+                    .filter(item -> !publicIds.contains(item))
+                    .toList();
+            for(String publicId:removedPublicIds){
+                Optional<TResource> resourceOptional = existResources.stream().filter(existResource -> existResource.getPublicId().equals(publicId)).findFirst();
+                if (resourceOptional.isPresent()) {
+                    deleteResource(resourceOptional.get());
+                    resourceMapper.deleteById(publicId);
+                }
+            }
             return true;
         });
         TUser user = userMapper.selectOneById(StpUtil.getLoginIdAsInt());
@@ -578,17 +595,4 @@ public class MemoService {
         }
     }
 
-    public void deleteFile(String filePath) {
-        File file = new File(filePath);
-
-        if (file.exists()) {
-            if (file.delete()) {
-                System.out.println("文件已成功删除：" + filePath);
-            } else {
-                System.out.println("无法删除文件：" + filePath);
-            }
-        } else {
-            System.out.println("文件不存在：" + filePath);
-        }
-    }
 }

@@ -95,30 +95,27 @@ public class QiNiuResourceProvider implements ResourceProvider {
         return uploadResourceResponse;
     }
 
-    public void del(TResource tResource) throws QiniuException{
+    @Override
+    public void del(TResource tResource){
         String param = sysConfigService.getString(SysConfigConstant.QINIU_PARAM);
         Map<String, String> map = new Gson().fromJson(param, new TypeToken<Map<String, String>>() {
         }.getType());
         String accessKey = MapUtils.getString(map, "accessKey");
         String secretKey = MapUtils.getString(map, "secretKey");
-        String region = MapUtils.getString(map, "region");
         String bucket = MapUtils.getString(map, "bucket");
+        String prefix = MapUtils.getString(map, "prefix");
         Auth auth = Auth.create(accessKey, secretKey);
-        Configuration cfg = new Configuration(Region.region0());
-        if (Objects.equals(region, QiniuRegion.huadong.name())){
-            cfg = new Configuration(Region.huadong());
-        }else if (Objects.equals(region, QiniuRegion.huadongZheJiang2.name())){
-            cfg = new Configuration(Region.huadongZheJiang2());
-        }else if (Objects.equals(region, QiniuRegion.huabei.name())){
-            cfg = new Configuration(Region.huabei());
-        }else if (Objects.equals(region, QiniuRegion.huanan.name())){
-            cfg = new Configuration(Region.huanan());
-        }else if (Objects.equals(region, QiniuRegion.beimei.name())){
-            cfg = new Configuration(Region.beimei());
-        }else if (Objects.equals(region, QiniuRegion.xinjiapo.name())){
-            cfg = new Configuration(Region.xinjiapo());
-        }
+        Configuration cfg = new Configuration();
         BucketManager bucketManager = new BucketManager(auth, cfg);
-        bucketManager.delete(bucket, tResource.getPublicId());
+        String key = tResource.getPublicId();
+        if (StringUtils.isNotEmpty(prefix)) {
+            key = prefix + "/" + key;
+        }
+        try {
+            bucketManager.delete(bucket, key);
+        } catch (QiniuException ex) {
+            log.error("删除七牛云资源异常", ex);
+            throw new BizException(ResponseCode.fail, "资源删除失败");
+        }
     }
 }
