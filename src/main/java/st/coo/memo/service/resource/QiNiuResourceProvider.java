@@ -3,7 +3,9 @@ package st.coo.memo.service.resource;
 import cn.hutool.core.io.file.FileNameUtil;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.qiniu.common.QiniuException;
 import com.qiniu.http.Response;
+import com.qiniu.storage.BucketManager;
 import com.qiniu.storage.Configuration;
 import com.qiniu.storage.Region;
 import com.qiniu.storage.UploadManager;
@@ -19,6 +21,7 @@ import st.coo.memo.common.QiniuRegion;
 import st.coo.memo.common.ResponseCode;
 import st.coo.memo.common.SysConfigConstant;
 import st.coo.memo.dto.resource.UploadResourceResponse;
+import st.coo.memo.entity.TResource;
 import st.coo.memo.service.SysConfigService;
 
 import java.util.Map;
@@ -90,5 +93,32 @@ public class QiNiuResourceProvider implements ResourceProvider {
         uploadResourceResponse.setSuffix(suffix);
         uploadResourceResponse.setPublicId(publicId);
         return uploadResourceResponse;
+    }
+
+    public void del(TResource tResource) throws QiniuException{
+        String param = sysConfigService.getString(SysConfigConstant.QINIU_PARAM);
+        Map<String, String> map = new Gson().fromJson(param, new TypeToken<Map<String, String>>() {
+        }.getType());
+        String accessKey = MapUtils.getString(map, "accessKey");
+        String secretKey = MapUtils.getString(map, "secretKey");
+        String region = MapUtils.getString(map, "region");
+        String bucket = MapUtils.getString(map, "bucket");
+        Auth auth = Auth.create(accessKey, secretKey);
+        Configuration cfg = new Configuration(Region.region0());
+        if (Objects.equals(region, QiniuRegion.huadong.name())){
+            cfg = new Configuration(Region.huadong());
+        }else if (Objects.equals(region, QiniuRegion.huadongZheJiang2.name())){
+            cfg = new Configuration(Region.huadongZheJiang2());
+        }else if (Objects.equals(region, QiniuRegion.huabei.name())){
+            cfg = new Configuration(Region.huabei());
+        }else if (Objects.equals(region, QiniuRegion.huanan.name())){
+            cfg = new Configuration(Region.huanan());
+        }else if (Objects.equals(region, QiniuRegion.beimei.name())){
+            cfg = new Configuration(Region.beimei());
+        }else if (Objects.equals(region, QiniuRegion.xinjiapo.name())){
+            cfg = new Configuration(Region.xinjiapo());
+        }
+        BucketManager bucketManager = new BucketManager(auth, cfg);
+        bucketManager.delete(bucket, tResource.getPublicId());
     }
 }

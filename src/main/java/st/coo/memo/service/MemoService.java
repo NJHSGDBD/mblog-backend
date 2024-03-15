@@ -10,6 +10,8 @@ import com.google.gson.Gson;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.row.Db;
 import com.mybatisflex.core.row.Row;
+import com.qiniu.common.QiniuException;
+
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpResponse;
@@ -31,6 +33,7 @@ import st.coo.memo.dto.memo.*;
 import st.coo.memo.dto.resource.ResourceDto;
 import st.coo.memo.entity.*;
 import st.coo.memo.mapper.*;
+import st.coo.memo.service.resource.QiNiuResourceProvider;
 
 import java.io.File;
 import java.io.IOException;
@@ -107,7 +110,14 @@ public class MemoService {
         //删除文件
         List<TResource> resourcesList = resourceMapper.selectListByQuery(QueryWrapper.create().and(T_RESOURCE.MEMO_ID.eq(id)));
         for (TResource tResource : resourcesList) {
-            this.deleteFile(tResource.getInternalPath());
+            //删除本地文件
+            if (tResource.getStorageType().equals(StorageType.LOCAL.name())) {
+                this.deleteFile(tResource.getInternalPath());
+            }
+            //删除云存储文件
+            if (tResource.getStorageType().equals(StorageType.QINIU.name())) {
+                // (new QiNiuResourceProvider()).del(tResource);
+            }
         }
         resourceMapper.deleteByQuery(QueryWrapper.create().and(T_RESOURCE.MEMO_ID.eq(id)));
         memoMapper.deleteById(id);
