@@ -32,6 +32,7 @@ import st.coo.memo.dto.resource.ResourceDto;
 import st.coo.memo.entity.*;
 import st.coo.memo.mapper.*;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
@@ -102,6 +103,11 @@ public class MemoService {
             for (String tag : tags) {
                 tagMapper.decrementTagCount(StpUtil.getLoginIdAsInt(), tag);
             }
+        }
+        //删除文件
+        List<TResource> resourcesList = resourceMapper.selectListByQuery(QueryWrapper.create().and(T_RESOURCE.MEMO_ID.eq(id)));
+        for (TResource tResource : resourcesList) {
+            this.deleteFile(tResource.getInternalPath());
         }
         resourceMapper.deleteByQuery(QueryWrapper.create().and(T_RESOURCE.MEMO_ID.eq(id)));
         memoMapper.deleteById(id);
@@ -562,5 +568,17 @@ public class MemoService {
         }
     }
 
+    public void deleteFile(String filePath) {
+        File file = new File(filePath);
 
+        if (file.exists()) {
+            if (file.delete()) {
+                System.out.println("文件已成功删除：" + filePath);
+            } else {
+                System.out.println("无法删除文件：" + filePath);
+            }
+        } else {
+            System.out.println("文件不存在：" + filePath);
+        }
+    }
 }
