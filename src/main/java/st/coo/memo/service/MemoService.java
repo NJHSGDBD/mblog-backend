@@ -35,7 +35,6 @@ import st.coo.memo.mapper.*;
 import st.coo.memo.service.resource.ResourceProvider;
 import st.coo.memo.service.resource.ResourceService;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
